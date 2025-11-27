@@ -4,6 +4,7 @@ import SwiftData
 struct BarbellPRsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allLifts: [LiftEvent]
+    @Binding var selectedTab: Int
     
     // Group lifts by exercise name
     var exercises: [String] {
@@ -12,11 +13,45 @@ struct BarbellPRsView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                ForEach(exercises, id: \.self) { exercise in
-                    NavigationLink(destination: ExercisePRDetailView(exerciseName: exercise, allLifts: allLifts)) {
-                        Text(exercise)
-                            .font(.headline)
+            Group {
+                if exercises.isEmpty {
+                    // Empty State
+                    VStack(spacing: 20) {
+                        Image(systemName: "dumbbell.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No Personal Records Yet")
+                            .font(.title2).bold()
+                        
+                        Text("Log your first workout to see your progress and estimated 1 Rep Maxes here.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button {
+                            selectedTab = 2 // Switch to 'Log Lift' tab
+                        } label: {
+                            Text("Log a Workout")
+                                .bold()
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                        }
+                        .padding(.horizontal, 40)
+                        .padding(.top, 10)
+                    }
+                } else {
+                    List {
+                        ForEach(exercises, id: \.self) { exercise in
+                            NavigationLink(destination: ExercisePRDetailView(exerciseName: exercise, allLifts: allLifts)) {
+                                Text(exercise)
+                                    .font(.headline)
+                            }
+                        }
                     }
                 }
             }
