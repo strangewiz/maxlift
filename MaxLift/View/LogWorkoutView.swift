@@ -1,12 +1,20 @@
 import SwiftUI
 import SwiftData
 
-// MARK: - 4. LOG WORKOUT VIEW
 struct LogWorkoutView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = LogWorkoutViewModel()
     
     @Query(sort: \LiftEvent.date, order: .reverse) private var recentLifts: [LiftEvent]
+
+    @FocusState private var focusedField: Field?
+
+    enum Field: Hashable {
+        case exerciseName
+        case weight
+        case reps
+        case notes
+    }
 
     var body: some View {
         NavigationView {
@@ -18,6 +26,7 @@ struct LogWorkoutView: View {
                     VStack(alignment: .leading) {
                         HStack {
                             TextField("Exercise (e.g. Squat)", text: $viewModel.exerciseName)
+                                .focused($focusedField, equals: .exerciseName)
                             
                             // Clear button
                             if !viewModel.exerciseName.isEmpty {
@@ -67,21 +76,25 @@ struct LogWorkoutView: View {
                     HStack {
                         TextField("Weight", text: $viewModel.weightString)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .weight)
                         Text("lbs")
                     }
                     HStack {
                         TextField("Reps", text: $viewModel.repsString)
                             .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .reps)
                         Text("reps")
                     }
                 }
                 
                 Section(header: Text("Notes")) {
                     TextField("Optional notes...", text: $viewModel.notes)
+                        .focused($focusedField, equals: .notes)
                 }
                 
                 Button("Save Lift") {
                     viewModel.saveLift(modelContext: modelContext)
+                    focusedField = nil // Dismiss keyboard after saving
                 }
                 .disabled(viewModel.exerciseName.isEmpty || viewModel.weightString.isEmpty || viewModel.repsString.isEmpty)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -92,6 +105,19 @@ struct LogWorkoutView: View {
             .navigationTitle("Log Workout")
             .alert("Lift Saved!", isPresented: $viewModel.showAlert) {
                 Button("OK", role: .cancel) { }
+            }
+            .onTapGesture { // Dismiss keyboard when tapping outside text fields
+                focusedField = nil
+            }
+            .toolbar { toolbarDoneButton } // Attach toolbar to Form
+        }
+    }
+
+    var toolbarDoneButton: some ToolbarContent {
+        ToolbarItemGroup(placement: .keyboard) {
+            Spacer()
+            Button("Done") {
+                focusedField = nil
             }
         }
     }
