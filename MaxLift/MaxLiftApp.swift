@@ -34,8 +34,14 @@ struct MaxLiftApp: App {
 
         // UI Testing Reset
         if ProcessInfo.processInfo.arguments.contains("-resetData") {
-          try? context.delete(model: LiftEvent.self)
-          UserDefaults.standard.removeObject(forKey: "prLookbackYears")
+          #if targetEnvironment(simulator)
+            try? context.delete(model: LiftEvent.self)
+            UserDefaults.standard.removeObject(forKey: "prLookbackYears")
+            // Code to run on a physical device
+            print(
+              "Tests are gonna fail, but we don't want to wipe our real data!"
+            )
+          #endif
         }
         // Cleanup templates
         // Remove any `LiftEvent` entries from the database that represent placeholder
