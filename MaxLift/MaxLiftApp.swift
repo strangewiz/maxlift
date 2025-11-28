@@ -24,15 +24,22 @@ struct MaxLiftApp: App {
             // Clean up: Remove any 'template' lifts (0 weight/0 reps) that might have been created previously
             // These will now be handled statically in the ViewModel to avoid polluting history.
             Task { @MainActor in
+                let context = container.mainContext
+                
+                // UI Testing Reset
+                if ProcessInfo.processInfo.arguments.contains("-resetData") {
+                    try? context.delete(model: LiftEvent.self)
+                }
+                
+                // Cleanup templates
                 let fetchDescriptor = FetchDescriptor<LiftEvent>(predicate: #Predicate { $0.weight == 0 && $0.reps == 0 })
-                if let templateLifts = try? container.mainContext.fetch(fetchDescriptor) {
+                if let templateLifts = try? context.fetch(fetchDescriptor) {
                     for lift in templateLifts {
-                        container.mainContext.delete(lift)
-                    }
-                    if !templateLifts.isEmpty {
-                        try? container.mainContext.save()
+                        context.delete(lift)
                     }
                 }
+                
+                try? context.save()
             }
             return container
         } catch {
