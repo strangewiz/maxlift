@@ -106,9 +106,7 @@ struct LogWorkoutView: View {
             .alert("Lift Saved!", isPresented: $viewModel.showAlert) {
                 Button("OK", role: .cancel) { }
             }
-            .onTapGesture { // Dismiss keyboard when tapping outside text fields
-                focusedField = nil
-            }
+            .scrollDismissesKeyboard(.interactively)
             .toolbar { toolbarDoneButton } // Attach toolbar to Form
         }
     }
