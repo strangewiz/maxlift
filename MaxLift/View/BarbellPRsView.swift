@@ -11,9 +11,32 @@ struct BarbellPRsView: View {
     Array(Set(allLifts.map { $0.exerciseName })).sorted()
   }
 
+  // Helper to get the best 1RM (actual or estimated) for an exercise
+  func bestOneRepMax(for exerciseName: String) -> (Double, Bool) {
+    let relevantLifts = allLifts.filter { $0.exerciseName == exerciseName }
+
+    // Try to find an actual 1-rep max first
+    if let actual1RM = relevantLifts.filter({ $0.reps == 1 }).max(by: {
+      $0.weight < $1.weight
+    })?.weight {
+      return (actual1RM, false)  // False indicates it's an actual 1RM
+    }
+
+    // Otherwise, find the max estimated 1RM from any lift
+    if let estimated1RM = relevantLifts.max(by: {
+      $0.estimatedOneRepMax < $1.estimatedOneRepMax
+    })?.estimatedOneRepMax {
+      return (estimated1RM, true)  // True indicates it's an estimated 1RM
+    }
+
+    return (0.0, false)  // Default if no lifts exist
+  }
+
   var body: some View {
     NavigationView {
-      Group {
+      ZStack {
+        Color.appBackground.ignoresSafeArea()
+
         if exercises.isEmpty {
           // Empty State
           VStack(spacing: 20) {
@@ -39,7 +62,7 @@ struct BarbellPRsView: View {
                 .bold()
                 .padding()
                 .frame(maxWidth: .infinity)
-                .background(Color.blue)
+                .background(Color.appAccent)
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }
@@ -55,11 +78,26 @@ struct BarbellPRsView: View {
                   allLifts: allLifts
                 )
               ) {
-                Text(exercise)
-                  .font(.headline)
+                HStack {
+                  Text(exercise)
+                    .font(.headline)
+                  Spacer()
+                  let (oneRM, isEstimated) = bestOneRepMax(for: exercise)
+                  if oneRM > 0 {
+                    Text("\(Int(oneRM))\(isEstimated ? " (est.)" : "")")
+                      .font(.subheadline)
+                      .foregroundColor(.textSecondary)
+                  } else {
+                    Text("-- lbs")
+                      .font(.subheadline)
+                      .foregroundColor(.textSecondary)
+                  }
+                }
               }
+              .listRowBackground(Color.cardBackground)
             }
           }
+          .scrollContentBackground(.hidden)  // Allow ZStack background to show
         }
       }
       .navigationTitle("Barbell PRs")
@@ -96,70 +134,75 @@ struct ExercisePRDetailView: View {
   }
 
   var body: some View {
-    ScrollView {
-      VStack(spacing: 24) {
-        // Header
-        Text(exerciseName)
-          .font(.largeTitle).bold()
-          .padding(.top)
+    ZStack {
+      Color.appBackground.ignoresSafeArea()
 
-        // PR Stats Grid
-        LazyVGrid(
-          columns: [GridItem(.flexible()), GridItem(.flexible())],
-          spacing: 16
-        ) {
-          ForEach([1, 2, 3, 5], id: \.self) { reps in
-            VStack(alignment: .leading, spacing: 4) {
-              Text("\(reps) Rep Max")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+      ScrollView {
+        VStack(spacing: 24) {
+          // Header
+          Text(exerciseName)
+            .font(.largeTitle).bold()
+            .padding(.top)
 
-              if let lift = bestLift(forReps: reps) {
-                HStack(alignment: .lastTextBaseline, spacing: 2) {
-                  Text("\(Int(lift.weight))")
+          // PR Stats Grid
+          LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: 16
+          ) {
+            ForEach([1, 2, 4, 5], id: \.self) { reps in
+              VStack(alignment: .leading, spacing: 4) {
+                Text("\(reps) Rep Max")
+                  .font(.caption)
+                  .foregroundColor(.textSecondary)
+                  .textCase(.uppercase)
+
+                if let lift = bestLift(forReps: reps) {
+                  HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text("\(Int(lift.weight))")
+                      .font(.title2).bold()
+                    Text("lbs")
+                      .font(.caption).bold().foregroundColor(.textSecondary)
+                  }
+                  Text(lift.date.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+                } else {
+                  Text("--")
                     .font(.title2).bold()
-                  Text("lbs")
-                    .font(.caption).bold().foregroundColor(.secondary)
+                    .foregroundColor(.gray.opacity(0.3))
                 }
-                Text(lift.date.formatted(date: .abbreviated, time: .omitted))
-                  .font(.caption2)
-                  .foregroundColor(.gray)
-              } else {
-                Text("--")
-                  .font(.title2).bold()
-                  .foregroundColor(.gray.opacity(0.3))
               }
+              .padding()
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .background(Color.cardBackground)
+              .cornerRadius(12)
+              .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(UIColor.secondarySystemBackground))
-            .cornerRadius(12)
           }
-        }
-        .padding(.horizontal)
-
-        Divider()
           .padding(.horizontal)
 
-        // Percentage Chart
-        VStack(alignment: .leading, spacing: 8) {
-          Text("Reference Chart")
-            .font(.headline)
+          Divider()
             .padding(.horizontal)
 
-          if maxEstimatedOneRepMax > 0 {
-            PercentageReferenceView(oneRepMax: maxEstimatedOneRepMax)
-          } else {
-            Text("Log a lift to see your reference chart.")
-              .font(.caption)
-              .foregroundColor(.secondary)
-              .frame(maxWidth: .infinity, alignment: .center)
-              .padding()
-          }
-        }
+          // Percentage Chart
+          VStack(alignment: .leading, spacing: 8) {
+            Text("Reference Chart")
+              .font(.headline)
+              .padding(.horizontal)
 
-        Spacer()
+            if maxEstimatedOneRepMax > 0 {
+              PercentageReferenceView(oneRepMax: maxEstimatedOneRepMax)
+            } else {
+              Text("Log a lift to see your reference chart.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding()
+            }
+          }
+
+          Spacer()
+        }
       }
     }
     .navigationBarTitleDisplayMode(.inline)

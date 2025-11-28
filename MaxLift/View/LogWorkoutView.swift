@@ -19,113 +19,117 @@ struct LogWorkoutView: View {
 
   var body: some View {
     NavigationView {
-      Form {
-        Section(header: Text("Details")) {
-          DatePicker(
-            "Date",
-            selection: $viewModel.date,
-            displayedComponents: .date
-          )
-
-          // Exercise Input with History Dropdown
-          VStack(alignment: .leading) {
-            HStack {
-              TextField("Exercise (e.g. Squat)", text: $viewModel.exerciseName)
+      ZStack {
+        Color.appBackground.ignoresSafeArea()
+        Form {
+          Section(header: Text("Details")) {
+            DatePicker(
+              "Date",
+              selection: $viewModel.date,
+              displayedComponents: .date
+            )
+            .listRowBackground(Color.cardBackground)
+            // Exercise Input with History Dropdown
+            VStack(alignment: .leading) {
+              HStack {
+                TextField(
+                  "Exercise (e.g. Squat)",
+                  text: $viewModel.exerciseName
+                )
                 .focused($focusedField, equals: .exerciseName)
-
-              // Clear button
+                // Clear button
+                if !viewModel.exerciseName.isEmpty {
+                  Button(action: { viewModel.exerciseName = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                      .foregroundColor(.secondary)
+                  }
+                }
+                Menu {
+                  let exercises = viewModel.previousExercises(from: recentLifts)
+                  if exercises.isEmpty {
+                    Text("No previous exercises")
+                  } else {
+                    ForEach(exercises, id: \.self) { exercise in
+                      Button(exercise) {
+                        viewModel.exerciseName = exercise
+                      }
+                    }
+                  }
+                } label: {
+                  Image(systemName: "chevron.down.circle.fill")
+                    .foregroundColor(.appAccent)
+                    .font(.title2)
+                }
+              }
               if !viewModel.exerciseName.isEmpty {
-                Button(action: { viewModel.exerciseName = "" }) {
-                  Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.secondary)
-                }
-              }
-
-              Menu {
-                let exercises = viewModel.previousExercises(from: recentLifts)
-                if exercises.isEmpty {
-                  Text("No previous exercises")
-                } else {
-                  ForEach(exercises, id: \.self) { exercise in
-                    Button(exercise) {
-                      viewModel.exerciseName = exercise
-                    }
-                  }
-                }
-              } label: {
-                Image(systemName: "chevron.down.circle.fill")
-                  .foregroundColor(.blue)
-                  .font(.title2)
-              }
-            }
-
-            if !viewModel.exerciseName.isEmpty {
-              ScrollView(.horizontal, showsIndicators: false) {
-                HStack {
-                  ForEach(
-                    viewModel.previousExercises(from: recentLifts).filter {
-                      $0.localizedCaseInsensitiveContains(
-                        viewModel.exerciseName
-                      )
-                    },
-                    id: \.self
-                  ) { suggestion in
-                    Button(action: { viewModel.exerciseName = suggestion }) {
-                      Text(suggestion)
-                        .font(.caption)
-                        .padding(6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
+                ScrollView(.horizontal, showsIndicators: false) {
+                  HStack {
+                    ForEach(
+                      viewModel.previousExercises(from: recentLifts).filter {
+                        $0.localizedCaseInsensitiveContains(
+                          viewModel.exerciseName
+                        )
+                      },
+                      id: \.self
+                    ) { suggestion in
+                      Button(action: { viewModel.exerciseName = suggestion }) {
+                        Text(suggestion)
+                          .font(.caption)
+                          .padding(6)
+                          .background(Color.appAccent.opacity(0.1))
+                          .cornerRadius(8)
+                      }
                     }
                   }
                 }
               }
             }
+            .listRowBackground(Color.cardBackground)
           }
-        }
-
-        Section(header: Text("Performance")) {
-          HStack {
-            TextField("Weight", text: $viewModel.weightString)
-              .keyboardType(.decimalPad)
-              .focused($focusedField, equals: .weight)
-            Text("lbs")
+          Section(header: Text("Performance")) {
+            HStack {
+              TextField("Weight", text: $viewModel.weightString)
+                .keyboardType(.decimalPad)
+                .focused($focusedField, equals: .weight)
+              Text("lbs")
+            }
+            .listRowBackground(Color.cardBackground)
+            HStack {
+              TextField("Reps", text: $viewModel.repsString)
+                .keyboardType(.numberPad)
+                .focused($focusedField, equals: .reps)
+              Text("reps")
+            }
+            .listRowBackground(Color.cardBackground)
           }
-          HStack {
-            TextField("Reps", text: $viewModel.repsString)
-              .keyboardType(.numberPad)
-              .focused($focusedField, equals: .reps)
-            Text("reps")
+          Section(header: Text("Notes")) {
+            TextField("Optional notes...", text: $viewModel.notes)
+              .focused($focusedField, equals: .notes)
+              .listRowBackground(Color.cardBackground)
           }
+          Button("Save Lift") {
+            viewModel.saveLift(modelContext: modelContext)
+            focusedField = nil  // Dismiss keyboard after saving
+          }
+          .disabled(
+            viewModel.exerciseName.isEmpty || viewModel.weightString.isEmpty
+              || viewModel.repsString.isEmpty
+          )
+          .frame(maxWidth: .infinity, alignment: .center)
+          .bold()
+          .foregroundColor(.white)
+          .listRowBackground(Color.appAccent)
         }
-
-        Section(header: Text("Notes")) {
-          TextField("Optional notes...", text: $viewModel.notes)
-            .focused($focusedField, equals: .notes)
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Log Workout")
+        .alert("Lift Saved!", isPresented: $viewModel.showAlert) {
+          Button("OK", role: .cancel) {}
         }
-
-        Button("Save Lift") {
-          viewModel.saveLift(modelContext: modelContext)
-          focusedField = nil  // Dismiss keyboard after saving
-        }
-        .disabled(
-          viewModel.exerciseName.isEmpty || viewModel.weightString.isEmpty
-            || viewModel.repsString.isEmpty
-        )
-        .frame(maxWidth: .infinity, alignment: .center)
-        .bold()
-        .foregroundColor(.white)
-        .listRowBackground(Color.blue)
+        .scrollDismissesKeyboard(.interactively)
+        .toolbar { toolbarDoneButton }  // Attach toolbar to Form
       }
-      .navigationTitle("Log Workout")
-      .alert("Lift Saved!", isPresented: $viewModel.showAlert) {
-        Button("OK", role: .cancel) {}
-      }
-      .scrollDismissesKeyboard(.interactively)
-      .toolbar { toolbarDoneButton }  // Attach toolbar to Form
     }
   }
-
   var toolbarDoneButton: some ToolbarContent {
     ToolbarItemGroup(placement: .keyboard) {
       Spacer()

@@ -9,41 +9,53 @@ struct HistoryView: View {
   @StateObject private var viewModel = HistoryViewModel()
 
   var body: some View {
+
     NavigationView {
-      List {
-        if viewModel.groupByExercise {
-          // Grouped View
-          let grouped = Dictionary(
-            grouping: viewModel.filteredLifts(lifts: lifts),
-            by: { $0.exerciseName }
-          )
-          ForEach(grouped.keys.sorted(), id: \.self) { key in
-            Section(header: Text(key)) {
-              ForEach(grouped[key]!) { lift in
-                NavigationLink(destination: LiftDetailView(lift: lift)) {
-                  LiftRow(lift: lift)
+      ZStack {
+        Color.appBackground.ignoresSafeArea()
+        List {
+          if viewModel.groupByExercise {
+
+            // Grouped View
+            let grouped = Dictionary(
+              grouping: viewModel.filteredLifts(lifts: lifts),
+              by: { $0.exerciseName }
+            )
+            ForEach(grouped.keys.sorted(), id: \.self) { key in
+              Section(header: Text(key)) {
+                ForEach(grouped[key]!) { lift in
+                  NavigationLink(destination: LiftDetailView(lift: lift)) {
+                    LiftRow(lift: lift)
+                  }
+                  .listRowBackground(Color.cardBackground)
                 }
               }
             }
-          }
-        } else {
-          // Standard List
-          ForEach(viewModel.filteredLifts(lifts: lifts)) { lift in
-            NavigationLink(destination: LiftDetailView(lift: lift)) {
-              LiftRow(lift: lift)
+          } else {
+
+            // Standard List
+            ForEach(viewModel.filteredLifts(lifts: lifts)) { lift in
+              NavigationLink(destination: LiftDetailView(lift: lift)) {
+                LiftRow(lift: lift)
+              }
+              .listRowBackground(Color.cardBackground)
             }
+            .onDelete(perform: deleteItems)
           }
-          .onDelete(perform: deleteItems)
         }
-      }
-      .searchable(text: $viewModel.searchText, prompt: "Search lift or reps...")
-      .navigationTitle("History")
-      .toolbar {
-        ToolbarItem(placement: .navigationBarTrailing) {
-          Button(action: { viewModel.groupByExercise.toggle() }) {
-            Image(
-              systemName: viewModel.groupByExercise ? "list.bullet" : "folder"
-            )
+        .scrollContentBackground(.hidden)
+        .searchable(
+          text: $viewModel.searchText,
+          prompt: "Search lift or reps..."
+        )
+        .navigationTitle("History")
+        .toolbar {
+          ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: { viewModel.groupByExercise.toggle() }) {
+              Image(
+                systemName: viewModel.groupByExercise ? "list.bullet" : "folder"
+              )
+            }
           }
         }
       }
