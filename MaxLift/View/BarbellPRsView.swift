@@ -5,25 +5,48 @@ struct BarbellPRsView: View {
   @Environment(\.modelContext) private var modelContext
   @Query private var allLifts: [LiftEvent]
   @Binding var selectedTab: Int
+  @AppStorage("prLookbackYears") private var prLookbackYears: Int = 0
+
+  // Filtered lifts based on lookback setting
+  var relevantLifts: [LiftEvent] {
+    if prLookbackYears == 0 {
+      return allLifts
+    } else {
+      guard
+        let cutoffDate = Calendar.current.date(
+          byAdding: .year,
+          value: -prLookbackYears,
+          to: Date()
+        )
+      else {
+        return allLifts
+      }
+      return allLifts.filter { $0.date >= cutoffDate }
+    }
+  }
 
   // Group lifts by exercise name
   var exercises: [String] {
-    Array(Set(allLifts.map { $0.exerciseName })).sorted()
+    Array(Set(relevantLifts.map { $0.exerciseName })).sorted()
   }
 
   // Helper to get the best 1RM (actual or estimated) for an exercise
   func bestOneRepMax(for exerciseName: String) -> (Double, Bool) {
-    let relevantLifts = allLifts.filter { $0.exerciseName == exerciseName }
+    let relevantLiftsForExercise = relevantLifts.filter {
+      $0.exerciseName == exerciseName
+    }
 
     // Try to find an actual 1-rep max first
-    if let actual1RM = relevantLifts.filter({ $0.reps == 1 }).max(by: {
-      $0.weight < $1.weight
-    })?.weight {
+    if let actual1RM = relevantLiftsForExercise.filter({ $0.reps == 1 }).max(
+      by: {
+        $0.weight < $1.weight
+      })?.weight
+    {
       return (actual1RM, false)  // False indicates it's an actual 1RM
     }
 
     // Otherwise, find the max estimated 1RM from any lift
-    if let estimated1RM = relevantLifts.max(by: {
+    if let estimated1RM = relevantLiftsForExercise.max(by: {
       $0.estimatedOneRepMax < $1.estimatedOneRepMax
     })?.estimatedOneRepMax {
       return (estimated1RM, true)  // True indicates it's an estimated 1RM
@@ -47,13 +70,23 @@ struct BarbellPRsView: View {
             Text("No Personal Records Yet")
               .font(.title2).bold()
 
-            Text(
-              "Log your first workout to see your progress and estimated 1 Rep Maxes here."
-            )
-            .font(.body)
-            .foregroundColor(.secondary)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal)
+            if prLookbackYears > 0 {
+              Text(
+                "No lifts found in the past \(prLookbackYears) year\(prLookbackYears > 1 ? "s" : ""). Try adjusting your preferences or log a new workout."
+              )
+              .font(.body)
+              .foregroundColor(.secondary)
+              .multilineTextAlignment(.center)
+              .padding(.horizontal)
+            } else {
+              Text(
+                "Log your first workout to see your progress and estimated 1 Rep Maxes here."
+              )
+              .font(.body)
+              .foregroundColor(.secondary)
+              .multilineTextAlignment(.center)
+              .padding(.horizontal)
+            }
 
             Button {
               selectedTab = 2  // Switch to 'Log Lift' tab
@@ -75,7 +108,7 @@ struct BarbellPRsView: View {
               NavigationLink(
                 destination: ExercisePRDetailView(
                   exerciseName: exercise,
-                  allLifts: allLifts
+                  allLifts: relevantLifts
                 )
               ) {
                 HStack {
@@ -84,7 +117,7 @@ struct BarbellPRsView: View {
                   Spacer()
                   let (oneRM, isEstimated) = bestOneRepMax(for: exercise)
                   if oneRM > 0 {
-                    Text("\(Int(oneRM))\(isEstimated ? " (est.)" : "")")
+                    Text("\(Int(oneRM))\(isEstimated ? " (est.)" : "") lbs")
                       .font(.subheadline)
                       .foregroundColor(.textSecondary)
                   } else {
@@ -150,33 +183,56 @@ struct ExercisePRDetailView: View {
             spacing: 16
           ) {
             ForEach([1, 2, 3, 5], id: \.self) { reps in
-              VStack(alignment: .leading, spacing: 4) {
-                Text("\(reps) Rep Max")
-                  .font(.caption)
-                  .foregroundColor(.textSecondary)
-                  .textCase(.uppercase)
+              // Conditional NavigationLink
+              if let lift = bestLift(forReps: reps) {
+                NavigationLink(destination: LiftDetailView(lift: lift)) {
+                  VStack(alignment: .leading, spacing: 4) {
+                    Text("\(reps) Rep Max")
+                      .font(.caption)
+                      .foregroundColor(.textSecondary)
+                      .textCase(.uppercase)
 
-                if let lift = bestLift(forReps: reps) {
-                  HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text("\(Int(lift.weight))")
-                      .font(.title2).bold()
-                    Text("lbs")
-                      .font(.caption).bold().foregroundColor(.textSecondary)
-                  }
-                  Text(lift.date.formatted(date: .abbreviated, time: .omitted))
+                    HStack(alignment: .lastTextBaseline, spacing: 2) {
+                      Text("\(Int(lift.weight))")
+                        .font(.title2).bold()
+                      Text("lbs")
+                        .font(.caption).bold().foregroundColor(.textSecondary)
+                    }
+                    Text(
+                      lift.date.formatted(date: .abbreviated, time: .omitted)
+                    )
                     .font(.caption2)
                     .foregroundColor(.gray)
-                } else {
+                  }
+                  .padding()
+                  .frame(maxWidth: .infinity, alignment: .leading)
+                  .background(Color.cardBackground)
+                  .cornerRadius(12)
+                  .shadow(
+                    color: Color.black.opacity(0.05),
+                    radius: 4,
+                    x: 0,
+                    y: 2
+                  )
+                }
+              } else {
+                // Non-tappable view if no lift exists
+                VStack(alignment: .leading, spacing: 4) {
+                  Text("\(reps) Rep Max")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .textCase(.uppercase)
+
                   Text("--")
                     .font(.title2).bold()
                     .foregroundColor(.gray.opacity(0.3))
                 }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.cardBackground)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
               }
-              .padding()
-              .frame(maxWidth: .infinity, alignment: .leading)
-              .background(Color.cardBackground)
-              .cornerRadius(12)
-              .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             }
           }
           .padding(.horizontal)

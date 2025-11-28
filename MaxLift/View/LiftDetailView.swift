@@ -20,6 +20,16 @@ struct LiftDetailView: View {
           Text("Logged: \(Int(lift.weight)) lbs x \(lift.reps)")
             .font(.title3).foregroundColor(.secondary)
 
+          if !lift.notes.isEmpty {
+            Text(lift.notes)
+              .font(.body)
+              .italic()
+              .foregroundColor(.secondary)
+              .padding(.vertical, 4)
+              .padding(.horizontal)
+              .multilineTextAlignment(.center)
+          }
+
           Divider()
 
           HStack(spacing: 40) {
