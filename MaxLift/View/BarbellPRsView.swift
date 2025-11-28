@@ -149,7 +149,7 @@ struct ExercisePRDetailView: View {
             columns: [GridItem(.flexible()), GridItem(.flexible())],
             spacing: 16
           ) {
-            ForEach([1, 2, 4, 5], id: \.self) { reps in
+            ForEach([1, 2, 3, 5], id: \.self) { reps in
               VStack(alignment: .leading, spacing: 4) {
                 Text("\(reps) Rep Max")
                   .font(.caption)
