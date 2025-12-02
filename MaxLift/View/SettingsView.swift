@@ -11,7 +11,7 @@ struct SettingsView: View {
   @AppStorage("prLookbackYears") private var prLookbackYears: Int = 0
 
   var body: some View {
-    NavigationView {
+    NavigationStack {
       List {
         Section(header: Text("Data Management")) {
           Button {

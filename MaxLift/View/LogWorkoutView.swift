@@ -18,7 +18,7 @@ struct LogWorkoutView: View {
   }
 
   var body: some View {
-    NavigationView {
+    NavigationStack {
       ZStack {
         Color.appBackground.ignoresSafeArea()
         Form {
