@@ -12,12 +12,11 @@ struct MainTabView: View {
         }
         .tag(0)
 
-      HistoryView()
+      HistoryView(selectedTab: $selectedTab)
         .tabItem {
           Label("History", systemImage: "clock.fill")
         }
         .tag(1)
-
       LogWorkoutView()
         .tabItem {
           Label("Log Lift", systemImage: "plus.circle.fill")
