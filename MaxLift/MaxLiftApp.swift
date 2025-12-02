@@ -37,6 +37,7 @@ struct MaxLiftApp: App {
           #if targetEnvironment(simulator)
             try? context.delete(model: LiftEvent.self)
             UserDefaults.standard.removeObject(forKey: "prLookbackYears")
+          #else
             // Code to run on a physical device
             print(
               "Tests are gonna fail, but we don't want to wipe our real data!"
